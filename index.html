@@ -25,8 +25,8 @@
     <div id="loginBox" class="card">
       <h3>เข้าสู่ระบบ</h3>
 
-      <label class="field-label">อีเมล</label>
-      <input id="email" type="email" placeholder="เช่น you@example.com">
+      <label class="field-label">ชื่อผู้ใช้ (เช่น SS1)</label>
+      <input id="username" type="text" placeholder="เช่น SS1">
 
       <label class="field-label">รหัสผ่าน</label>
       <input id="password" type="password" placeholder="รหัสผ่าน">
@@ -42,11 +42,16 @@
       </button>
 
       <p id="loginMsg" class="msg"></p>
-      <p id="hint">* โหมดทดลอง: ใส่อีเมลและรหัสผ่านอะไรก็ได้เพื่อเข้าสู่ระบบ</p>
+      <p id="hint">* ตัวอย่าง: ผู้ใช้ SS1 รหัสผ่าน 1 → เห็นเฉพาะข้อมูลผู้ป่วยที่ SS1 สร้าง</p>
     </div>
 
     <!-- หน้า Main (เลือกผู้ป่วย + Monitor + ปุ่มหน้าถัดไป) -->
     <div id="mainPage" style="display:none;">
+      <!-- แถบผู้ใช้ปัจจุบัน -->
+      <div class="card" id="userBox">
+        <span>เข้าสู่ระบบเป็น: <strong id="currentUserLabel">-</strong></span>
+      </div>
+
       <!-- กล่องเลือกผู้ป่วย -->
       <div id="patientBox" class="card" style="display:none;">
         <h3>เลือกผู้ป่วย</h3>
@@ -167,7 +172,7 @@
     // ตั้งค่า Firebase Realtime DB (REST API)
     // ==========================
     const FIREBASE_URL  = "https://ankle-cpm-default-rtdb.asia-southeast1.firebasedatabase.app";
-    const FIREBASE_AUTH = null; // ถ้าใช้ token ให้ใส่สตริงแทน null เช่น "abcd1234TOKEN"
+    const FIREBASE_AUTH = null; // ถ้าใช้ token ให้ใส่ string เช่น "abcd1234TOKEN"
 
     function buildUrl(path) {
       let url = FIREBASE_URL + path;
@@ -187,12 +192,13 @@
     const patientBox     = document.getElementById("patientBox");
     const monitorBox     = document.getElementById("monitorBox");
     const mainNavRow     = document.getElementById("mainNavRow");
+    const currentUserLabel = document.getElementById("currentUserLabel");
 
     const loginBtn       = document.getElementById("loginBtn");
     const registerBtn    = document.getElementById("registerBtn");
     const logoutBtn      = document.getElementById("logoutBtn");
     const loginMsg       = document.getElementById("loginMsg");
-    const emailInput     = document.getElementById("email");
+    const usernameInput  = document.getElementById("username");
     const passwordInput  = document.getElementById("password");
     const fullscreenBtn  = document.getElementById("fullscreenBtn");
 
@@ -226,62 +232,11 @@
     const backToLoginBtn= document.getElementById("backToLoginBtn");
 
     // ==========================
-    // Login หน้าเว็บ (โหมดทดลอง)
+    // ตัวแปรสถานะ
     // ==========================
-    function showMainUI() {
-      loginBox.style.display   = "none";
-      mainPage.style.display   = "block";
-      patientBox.style.display = "block";
-      monitorBox.style.display = "block";
-      mainNavRow.style.display = "block";
-      logoutBtn.style.display  = "inline-block";
-      loginMsg.textContent     = "";
-    }
-
-    function showLoginUI() {
-      loginBox.style.display   = "block";
-      mainPage.style.display   = "none";
-      historyPage.style.display= "none";
-      logoutBtn.style.display  = "none";
-    }
-
-    loginBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      const email = emailInput.value.trim();
-      const pass  = passwordInput.value.trim();
-      if (!email || !pass) {
-        loginMsg.textContent = "กรุณากรอกอีเมลและรหัสผ่าน (ใส่อะไรก็ได้ในโหมดทดลอง)";
-        loginMsg.style.color = "yellow";
-        return;
-      }
-      showMainUI();
-    });
-
-    registerBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      loginMsg.textContent = "โหมดทดลอง: ปุ่มสมัครสมาชิกยังไม่เชื่อมระบบจริง";
-      loginMsg.style.color = "lightgray";
-    });
-
-    logoutBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      emailInput.value    = "";
-      passwordInput.value = "";
-      showLoginUI();
-    });
-
-    fullscreenBtn.addEventListener("click", () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-          console.error("Error attempting fullscreen:", err);
-        });
-      } else {
-        document.exitFullscreen();
-      }
-    });
-
-    // เริ่มต้นที่หน้า Login
-    showLoginUI();
+    let currentUserId   = null; // เช่น "SS1"
+    let patientMap      = {};   // patientId -> data
+    let currentPatientId= null;
 
     // ==========================
     // ฟังก์ชันช่วย format เวลา
@@ -308,43 +263,198 @@
       return `${dd}/${mm}/${yy} ${hh}:${mi}:${ss}`;
     }
 
-    // ==========================
-    // จัดการข้อมูลผู้ป่วย
-    // ==========================
-    let patientMap = {};       // id -> data
-    let currentPatientId = null;
+    function clearMonitor() {
+      stateEl.textContent = "-";
+      angleEl.textContent = "-";
+      remEl.textContent   = "-";
+      timeEl.textContent  = "-";
+    }
 
-    async function loadPatients() {
+    function clearHistoryTable() {
+      historyBody.innerHTML = `
+        <tr>
+          <td colspan="5" class="empty">ยังไม่มีข้อมูล</td>
+        </tr>
+      `;
+    }
+
+    // ==========================
+    // แสดง UI
+    // ==========================
+    function showMainUI() {
+      loginBox.style.display   = "none";
+      mainPage.style.display   = "block";
+      historyPage.style.display= "none";
+      patientBox.style.display = "block";
+      monitorBox.style.display = "block";
+      mainNavRow.style.display = "block";
+      logoutBtn.style.display  = "inline-block";
+      currentUserLabel.textContent = currentUserId || "-";
+      loginMsg.textContent     = "";
+    }
+
+    function showLoginUI() {
+      loginBox.style.display   = "block";
+      mainPage.style.display   = "none";
+      historyPage.style.display= "none";
+      logoutBtn.style.display  = "none";
+      currentUserId            = null;
+      currentUserLabel.textContent = "-";
+      patientMap               = {};
+      currentPatientId         = null;
+      patientSelect.innerHTML  = `<option value="">— เลือกผู้ป่วย —</option>`;
+      patientInfo.style.display = "none";
+      deletePatientBtn.style.display = "none";
+      clearMonitor();
+      clearHistoryTable();
+    }
+
+    fullscreenBtn.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error("Error attempting fullscreen:", err);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    // ==========================
+    // ระบบผู้ใช้ (users/{username})
+    // ==========================
+    async function registerUser(username, password) {
+      const u = username.trim();
+      const p = password.trim();
+      if (!u || !p) {
+        loginMsg.textContent = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
+        loginMsg.style.color = "yellow";
+        return;
+      }
+
       try {
-        const res = await fetch(buildUrl("/patients.json"));
-        const data = await res.json();
-
-        patientMap = {};
-        // ล้าง option เก่า (เหลือ placeholder ตัวแรก)
-        while (patientSelect.options.length > 1) {
-          patientSelect.remove(1);
-        }
-
-        if (!data) {
+        const url = buildUrl("/users/" + encodeURIComponent(u) + ".json");
+        const res = await fetch(url);
+        const existing = await res.json();
+        if (existing) {
+          loginMsg.textContent = "มีผู้ใช้นี้อยู่แล้ว กรุณาเลือกชื่ออื่น";
+          loginMsg.style.color = "red";
           return;
         }
 
-        Object.keys(data).forEach((id) => {
-          const p = data[id];
-          patientMap[id] = p;
-          const opt = document.createElement("option");
-          const name = p.name || "";
-          const lastname = p.lastname || "";
-          opt.value = id;
-          opt.textContent = `${name} ${lastname} (${id})`;
-          patientSelect.appendChild(opt);
+        const payload = {
+          password: p,              // ในระบบจริงควร hash นะครับ อันนี้เพื่อใช้งานง่าย
+          createdAt: Date.now()
+        };
+
+        const resSet = await fetch(url, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
         });
+
+        if (!resSet.ok) {
+          throw new Error("HTTP " + resSet.status);
+        }
+
+        loginMsg.textContent = "สมัครสมาชิกเสร็จแล้ว ลองกดเข้าสู่ระบบ";
+        loginMsg.style.color = "lightgreen";
       } catch (err) {
-        console.error("loadPatients error:", err);
+        console.error("registerUser error:", err);
+        loginMsg.textContent = "สมัครสมาชิกไม่สำเร็จ: " + err;
+        loginMsg.style.color = "red";
       }
     }
 
-    // แสดง/ซ่อนฟอร์มผู้ป่วยใหม่
+    async function loginUser(username, password) {
+      const u = username.trim();
+      const p = password.trim();
+      if (!u || !p) {
+        loginMsg.textContent = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
+        loginMsg.style.color = "yellow";
+        return;
+      }
+
+      try {
+        const url = buildUrl("/users/" + encodeURIComponent(u) + ".json");
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data) {
+          loginMsg.textContent = "ไม่พบผู้ใช้ หรือรหัสผ่านไม่ถูกต้อง";
+          loginMsg.style.color = "red";
+          return;
+        }
+        if (data.password !== p) {
+          loginMsg.textContent = "รหัสผ่านไม่ถูกต้อง";
+          loginMsg.style.color = "red";
+          return;
+        }
+
+        currentUserId = u;
+        showMainUI();
+        await loadPatientsForCurrentUser();
+      } catch (err) {
+        console.error("loginUser error:", err);
+        loginMsg.textContent = "เข้าสู่ระบบไม่สำเร็จ: " + err;
+        loginMsg.style.color = "red";
+      }
+    }
+
+    // ปุ่ม login / register / logout
+    loginBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      loginUser(usernameInput.value, passwordInput.value);
+    });
+
+    registerBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      registerUser(usernameInput.value, passwordInput.value);
+    });
+
+    logoutBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      usernameInput.value = "";
+      passwordInput.value = "";
+      showLoginUI();
+    });
+
+    // ==========================
+    // จัดการข้อมูลผู้ป่วย (patients/{patientId})
+    // ==========================
+    async function loadPatientsForCurrentUser() {
+      patientMap = {};
+      patientSelect.innerHTML = `<option value="">— เลือกผู้ป่วย —</option>`;
+      patientInfo.style.display = "none";
+      deletePatientBtn.style.display = "none";
+      clearHistoryTable();
+      clearMonitor();
+
+      if (!currentUserId) return;
+
+      try {
+        const url = buildUrl("/patients.json");
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data) return;
+
+        Object.keys(data).forEach((pid) => {
+          const p = data[pid];
+          if (!p) return;
+          // แสดงเฉพาะผู้ป่วยที่ ownerId ตรงกับผู้ใช้ปัจจุบัน
+          if (p.ownerId !== currentUserId) return;
+
+          patientMap[pid] = p;
+          const opt = document.createElement("option");
+          const fullname = (p.name || "") + (p.lastname ? " " + p.lastname : "");
+          opt.value = pid;
+          opt.textContent = `${fullname} (${pid})`;
+          patientSelect.appendChild(opt);
+        });
+      } catch (err) {
+        console.error("loadPatientsForCurrentUser error:", err);
+      }
+    }
+
+    // สลับแสดงฟอร์มผู้ป่วยใหม่
     toggleNewPatientBtn.addEventListener("click", () => {
       if (newPatientForm.style.display === "none" || newPatientForm.style.display === "") {
         newPatientForm.style.display = "block";
@@ -353,15 +463,21 @@
       }
     });
 
-    // บันทึกผู้ป่วยใหม่ (ใช้ newHN เป็นรหัส 4 หลัก)
+    // บันทึกผู้ป่วยใหม่
     savePatientBtn.addEventListener("click", async () => {
+      patientMsgEl.textContent = "";
+      deleteMsgEl.textContent  = "";
+
+      if (!currentUserId) {
+        patientMsgEl.textContent = "กรุณาเข้าสู่ระบบก่อน";
+        patientMsgEl.style.color = "red";
+        return;
+      }
+
       const name     = newNameInput.value.trim();
       const id       = newHNInput.value.trim();
       const deviceId = newDeviceInput.value.trim();
       const note     = newNoteInput.value.trim();
-
-      patientMsgEl.textContent = "";
-      deleteMsgEl.textContent  = "";
 
       if (!name) {
         patientMsgEl.textContent = "กรุณากรอกชื่อ-สกุล";
@@ -369,7 +485,7 @@
         return;
       }
       if (id.length !== 4 || !/^\d{4}$/.test(id)) {
-        patientMsgEl.textContent = "รหัสผู้ป่วยต้องเป็นตัวเลข 4 หลัก";
+        patientMsgEl.textContent = "รหัสผู้ป่วยต้องเป็นตัวเลข 4 หลัก (เช่น 0123)";
         patientMsgEl.style.color = "red";
         return;
       }
@@ -377,9 +493,10 @@
       const payload = {
         patientId: id,
         name: name,
-        lastname: "",       // ถ้าอยากแยกชื่อ-นามสกุล เพิ่ม input อีกช่องได้
+        lastname: "",
         deviceId: deviceId || "",
         note: note || "",
+        ownerId: currentUserId,
         createdAt: Date.now()
       };
 
@@ -401,8 +518,7 @@
         newNoteInput.value   = "";
         newPatientForm.style.display = "none";
 
-        // โหลดใหม่ + เลือกคนที่เพิ่งสร้าง
-        await loadPatients();
+        await loadPatientsForCurrentUser();
         patientSelect.value = id;
         onPatientSelected(id);
       } catch (err) {
@@ -412,52 +528,64 @@
       }
     });
 
-    // ลบผู้ป่วย + ประวัติที่ patientId ตรงกัน
+    // ลบผู้ป่วย
     deletePatientBtn.addEventListener("click", async () => {
       deleteMsgEl.textContent = "";
-      if (!currentPatientId) {
+      if (!currentUserId) {
+        deleteMsgEl.textContent = "กรุณาเข้าสู่ระบบก่อน";
+        deleteMsgEl.style.color = "red";
+        return;
+      }
+      if (!currentPatientId || !patientMap[currentPatientId]) {
         deleteMsgEl.textContent = "กรุณาเลือกผู้ป่วยก่อนลบ";
         deleteMsgEl.style.color = "yellow";
         return;
       }
 
+      const p = patientMap[currentPatientId];
+      if (p.ownerId !== currentUserId) {
+        deleteMsgEl.textContent = "คุณไม่มีสิทธิ์ลบผู้ป่วยคนนี้";
+        deleteMsgEl.style.color = "red";
+        return;
+      }
+
       const ok = window.confirm(
-        "ยืนยันลบผู้ป่วยนี้และประวัติทั้งหมดของรหัส " + currentPatientId + " ?"
+        "ยืนยันลบผู้ป่วยรหัส " + currentPatientId + " และประวัติทั้งหมด?"
       );
       if (!ok) return;
 
       try {
         // ลบ /patients/{id}
-        const urlPatient = buildUrl("/patients/" + currentPatientId + ".json");
-        await fetch(urlPatient, { method: "DELETE" });
+        const urlP = buildUrl("/patients/" + currentPatientId + ".json");
+        await fetch(urlP, { method: "DELETE" });
 
-        // ลบรายการใน cpm_results ที่ patientId ตรงกัน
+        // ลบประวัติจาก cpm_results ที่ patientId ตรงกัน
         const urlHist = buildUrl("/cpm_results.json");
-        const resHist = await fetch(urlHist);
-        const histData = await resHist.json();
+        const resH = await fetch(urlHist);
+        const histData = await resH.json();
 
         if (histData) {
-          const deletes = [];
+          const tasks = [];
           for (const key in histData) {
             const item = histData[key];
             if (item && item.patientId === currentPatientId) {
               const delUrl = buildUrl("/cpm_results/" + key + ".json");
-              deletes.push(fetch(delUrl, { method: "DELETE" }));
+              tasks.push(fetch(delUrl, { method: "DELETE" }));
             }
           }
-          await Promise.all(deletes);
+          await Promise.all(tasks);
         }
 
-        deleteMsgEl.textContent = "ลบข้อมูลผู้ป่วยและประวัติเรียบร้อย";
+        deleteMsgEl.textContent = "ลบผู้ป่วยและประวัติเรียบร้อย";
         deleteMsgEl.style.color = "lightgreen";
 
         currentPatientId = null;
         patientInfo.style.display = "none";
         deletePatientBtn.style.display = "none";
         patientSelect.value = "";
-        clearHistoryTable();
         clearMonitor();
-        await loadPatients();
+        clearHistoryTable();
+        await loadPatientsForCurrentUser();
       } catch (err) {
         console.error("deletePatient error:", err);
         deleteMsgEl.textContent = "ลบไม่สำเร็จ: " + err;
@@ -465,7 +593,7 @@
       }
     });
 
-    // เมื่อเปลี่ยนผู้ป่วยใน select
+    // เปลี่ยนผู้ป่วยที่เลือก
     patientSelect.addEventListener("change", () => {
       const id = patientSelect.value;
       onPatientSelected(id);
@@ -477,18 +605,19 @@
         currentPatientId = null;
         patientInfo.style.display = "none";
         deletePatientBtn.style.display = "none";
-        clearHistoryTable();
         clearMonitor();
+        clearHistoryTable();
         return;
       }
 
       currentPatientId = id;
       const p = patientMap[id];
 
-      pNameEl.textContent    = (p.name || "") + (p.lastname ? " " + p.lastname : "");
-      pHNEl.textContent      = p.patientId || id;
-      pDeviceEl.textContent  = p.deviceId || "-";
-      pNoteEl.textContent    = p.note || "-";
+      pNameEl.textContent   = (p.name || "") + (p.lastname ? " " + p.lastname : "");
+      pHNEl.textContent     = p.patientId || id;
+      pDeviceEl.textContent = p.deviceId || "-";
+      pNoteEl.textContent   = p.note || "-";
+
       patientInfo.style.display = "block";
       deletePatientBtn.style.display = "inline-block";
 
@@ -496,23 +625,8 @@
     }
 
     // ==========================
-    // ประวัติ CPM ของผู้ป่วย
+    // ดึงประวัติ CPM ของผู้ป่วยจาก cpm_results
     // ==========================
-    function clearHistoryTable() {
-      historyBody.innerHTML = `
-        <tr>
-          <td colspan="5" class="empty">ยังไม่มีข้อมูล</td>
-        </tr>
-      `;
-    }
-
-    function clearMonitor() {
-      stateEl.textContent = "-";
-      angleEl.textContent = "-";
-      remEl.textContent   = "-";
-      timeEl.textContent  = "-";
-    }
-
     async function loadHistoryForPatient(patientId) {
       clearHistoryTable();
       clearMonitor();
@@ -522,10 +636,7 @@
         const url = buildUrl("/cpm_results.json");
         const res = await fetch(url);
         const data = await res.json();
-
-        if (!data) {
-          return;
-        }
+        if (!data) return;
 
         const rows = [];
         for (const key in data) {
@@ -539,13 +650,11 @@
           return;
         }
 
-        // เรียงจากใหม่ไปเก่า ตาม ts
         rows.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
         historyBody.innerHTML = "";
         rows.forEach((r) => {
           const tr = document.createElement("tr");
-
           const tsDisp = r.ts ? formatTimeFromSeconds(r.ts) : "-";
           const angleDisp = (r.angle1 != null && r.angle2 != null)
             ? `${r.angle1}° - ${r.angle2}°`
@@ -566,7 +675,7 @@
           historyBody.appendChild(tr);
         });
 
-        // เอา session ล่าสุดไปแสดงที่ Monitor
+        // แสดง session ล่าสุดในกล่อง Monitor
         const latest = rows[0];
         stateEl.textContent = "FINISHED";
         angleEl.textContent = (latest.angle1 != null && latest.angle2 != null)
@@ -576,7 +685,6 @@
           ? `${latest.workTimeSec} วินาที (${formatMMSS(latest.workTimeSec)})`
           : "-";
         timeEl.textContent  = latest.ts ? formatTimeFromSeconds(latest.ts) : "-";
-
       } catch (err) {
         console.error("loadHistoryForPatient error:", err);
       }
@@ -601,10 +709,10 @@
     });
 
     // ==========================
-    // โหลดข้อมูลผู้ป่วยครั้งแรกเมื่อเปิดหน้า
+    // เริ่มต้น
     // ==========================
     document.addEventListener("DOMContentLoaded", () => {
-      loadPatients();
+      showLoginUI();
     });
   </script>
 </body>
