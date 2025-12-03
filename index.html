@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>CPM Monitor</title>
 
-  <!-- ใช้กับ repo ชื่อ cpmpateint-data บน GitHub Pages -->
+  <!-- ถ้า repo บน GitHub Pages ชื่อ cpmpateint-data -->
   <base href="/cpmpateint-data/">
 
   <link rel="stylesheet" href="css/styles.css">
@@ -13,7 +13,7 @@
   <div class="bg-overlay"></div>
 
   <div id="appWrapper">
-    <!-- Logo ส่วนบน -->
+    <!-- LOGO -->
     <div class="logo-block">
       <div class="logo-circle">CPM</div>
       <div class="logo-text">
@@ -22,7 +22,7 @@
       </div>
     </div>
 
-    <!-- ========== หน้า LOGIN ========== -->
+    <!-- ========== LOGIN PAGE ========== -->
     <div id="loginBox" class="card">
       <h3>เข้าสู่ระบบ</h3>
 
@@ -34,7 +34,7 @@
 
       <div class="button-row">
         <button id="loginBtn" class="btn primary">เข้าสู่ระบบ</button>
-        <button id="goRegisterBtn" class="btn ghost small">สมัครสมาชิกใหม่</button>
+        <button id="goRegisterBtn" class="btn ghost small">สมัครสมาชิก</button>
       </div>
 
       <button id="fullscreenBtn" class="btn ghost small fs-btn">
@@ -44,7 +44,7 @@
       <p id="loginMsg" class="msg"></p>
     </div>
 
-    <!-- ========== หน้า REGISTER แยกต่างหาก ========== -->
+    <!-- ========== REGISTER PAGE (แยกต่างหาก) ========== -->
     <div id="registerBox" class="card" style="display:none;">
       <h3>สมัครสมาชิก</h3>
 
@@ -56,7 +56,7 @@
 
       <div class="button-row">
         <button id="registerSubmitBtn" class="btn primary">สมัครสมาชิก</button>
-        <button id="backToLoginBtn" class="btn ghost small">กลับไปหน้าเข้าสู่ระบบ</button>
+        <button id="backToLoginBtn" class="btn ghost small">กลับหน้าเข้าสู่ระบบ</button>
       </div>
 
       <p id="registerMsg" class="msg"></p>
@@ -64,7 +64,7 @@
 
     <!-- ========== MAIN PAGE (หลังล็อกอินแล้ว) ========== -->
     <div id="mainPage" style="display:none;">
-      <!-- แถบผู้ใช้ปัจจุบัน -->
+      <!-- user bar -->
       <div class="card" id="userBox">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span>เข้าสู่ระบบเป็น: <strong id="currentUserLabel">-</strong></span>
@@ -72,7 +72,7 @@
         </div>
       </div>
 
-      <!-- กล่องเลือกผู้ป่วย -->
+      <!-- เลือกผู้ป่วย -->
       <div id="patientBox" class="card" style="display:none;">
         <h3>เลือกผู้ป่วย</h3>
 
@@ -124,7 +124,7 @@
         <p id="deleteMsg" class="msg"></p>
       </div>
 
-      <!-- กล่องแสดงสถานะ CPM -->
+      <!-- Monitor CPM -->
       <div id="monitorBox" class="card monitor" style="display:none;">
         <h3>สถานะเครื่อง CPM</h3>
         <div id="statusBox">
@@ -150,7 +150,7 @@
         </div>
       </div>
 
-      <!-- ปุ่มไปหน้า History -->
+      <!-- ปุ่มไป History -->
       <div id="mainNavRow" class="nav-row" style="display:none;">
         <button id="toHistoryBtn" class="btn ghost small">หน้าถัดไป (ประวัติผู้ป่วย)</button>
       </div>
@@ -182,17 +182,17 @@
 
       <div class="nav-row">
         <button id="backToMainBtn" class="btn ghost small">ย้อนกลับหน้าหลัก</button>
-        <button id="backToLoginBtn" class="btn danger small">กลับไปหน้าเข้าสู่ระบบ</button>
+        <button id="backToLoginFromHistoryBtn" class="btn danger small">กลับหน้าเข้าสู่ระบบ</button>
       </div>
     </div>
   </div>
 
   <script>
     // ==========================
-    // ตั้งค่า Firebase Realtime DB (REST API)
+    // Firebase Realtime DB (REST)
     // ==========================
     const FIREBASE_URL  = "https://ankle-cpm-default-rtdb.asia-southeast1.firebasedatabase.app";
-    const FIREBASE_AUTH = null; // ถ้ามี token ให้ใส่ string เช่น "abcd1234TOKEN"
+    const FIREBASE_AUTH = null; // ถ้าใช้ token ใส่ string เป็นค่าได้เลย
 
     function buildUrl(path) {
       let url = FIREBASE_URL + path;
@@ -204,40 +204,40 @@
     }
 
     // ==========================
-    // อ้างอิง element ในหน้า
+    // DOM elements
     // ==========================
-    const loginBox       = document.getElementById("loginBox");
-    const registerBox    = document.getElementById("registerBox");
-    const mainPage       = document.getElementById("mainPage");
-    const historyPage    = document.getElementById("historyPage");
-    const patientBox     = document.getElementById("patientBox");
-    const monitorBox     = document.getElementById("monitorBox");
-    const mainNavRow     = document.getElementById("mainNavRow");
+    const loginBox    = document.getElementById("loginBox");
+    const registerBox = document.getElementById("registerBox");
+    const mainPage    = document.getElementById("mainPage");
+    const historyPage = document.getElementById("historyPage");
+
+    // login
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const loginBtn      = document.getElementById("loginBtn");
+    const goRegisterBtn = document.getElementById("goRegisterBtn");
+    const loginMsg      = document.getElementById("loginMsg");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+
+    // register
+    const regUsernameInput  = document.getElementById("regUsername");
+    const regPasswordInput  = document.getElementById("regPassword");
+    const registerSubmitBtn = document.getElementById("registerSubmitBtn");
+    const backToLoginBtn    = document.getElementById("backToLoginBtn");
+    const registerMsg       = document.getElementById("registerMsg");
+
+    // main user bar
+    const logoutBtn        = document.getElementById("logoutBtn");
     const currentUserLabel = document.getElementById("currentUserLabel");
 
-    // login elements
-    const usernameInput  = document.getElementById("username");
-    const passwordInput  = document.getElementById("password");
-    const loginBtn       = document.getElementById("loginBtn");
-    const goRegisterBtn  = document.getElementById("goRegisterBtn");
-    const loginMsg       = document.getElementById("loginMsg");
-    const fullscreenBtn  = document.getElementById("fullscreenBtn");
-
-    // register elements
-    const regUsernameInput   = document.getElementById("regUsername");
-    const regPasswordInput   = document.getElementById("regPassword");
-    const registerSubmitBtn  = document.getElementById("registerSubmitBtn");
-    const registerMsg        = document.getElementById("registerMsg");
-    const backToLoginBtn     = document.getElementById("backToLoginBtn");
-
-    // main UI elements
-    const logoutBtn      = document.getElementById("logoutBtn");
-    const patientSelect  = document.getElementById("patientSelect");
-    const patientInfo    = document.getElementById("patientInfo");
-    const pNameEl        = document.getElementById("pName");
-    const pHNEl          = document.getElementById("pHN");
-    const pDeviceEl      = document.getElementById("pDevice");
-    const pNoteEl        = document.getElementById("pNote");
+    // patient area
+    const patientBox   = document.getElementById("patientBox");
+    const patientSelect= document.getElementById("patientSelect");
+    const patientInfo  = document.getElementById("patientInfo");
+    const pNameEl      = document.getElementById("pName");
+    const pHNEl        = document.getElementById("pHN");
+    const pDeviceEl    = document.getElementById("pDevice");
+    const pNoteEl      = document.getElementById("pNote");
 
     const toggleNewPatientBtn = document.getElementById("toggleNewPatientBtn");
     const newPatientForm      = document.getElementById("newPatientForm");
@@ -251,25 +251,29 @@
     const deletePatientBtn    = document.getElementById("deletePatientBtn");
     const deleteMsgEl         = document.getElementById("deleteMsg");
 
-    const stateEl  = document.getElementById("stateText");
-    const angleEl  = document.getElementById("angleText");
-    const remEl    = document.getElementById("remText");
-    const timeEl   = document.getElementById("timeText");
+    // monitor
+    const monitorBox = document.getElementById("monitorBox");
+    const mainNavRow = document.getElementById("mainNavRow");
+    const stateEl    = document.getElementById("stateText");
+    const angleEl    = document.getElementById("angleText");
+    const remEl      = document.getElementById("remText");
+    const timeEl     = document.getElementById("timeText");
 
-    const historyBody   = document.getElementById("historyBody");
-    const toHistoryBtn  = document.getElementById("toHistoryBtn");
-    const backToMainBtn = document.getElementById("backToMainBtn");
-    const backToLoginBtn2= document.getElementById("backToLoginBtn"); // same id
-
-    // ==========================
-    // ตัวแปรสถานะ
-    // ==========================
-    let currentUserId   = null; // เช่น "SS1"
-    let patientMap      = {};   // patientId -> data
-    let currentPatientId= null;
+    // history
+    const historyBody        = document.getElementById("historyBody");
+    const toHistoryBtn       = document.getElementById("toHistoryBtn");
+    const backToMainBtn      = document.getElementById("backToMainBtn");
+    const backToLoginFromHistoryBtn = document.getElementById("backToLoginFromHistoryBtn");
 
     // ==========================
-    // ฟังก์ชันช่วย format เวลา
+    // State
+    // ==========================
+    let currentUserId    = null;
+    let patientMap       = {};
+    let currentPatientId = null;
+
+    // ==========================
+    // Helpers
     // ==========================
     function formatMMSS(sec) {
       sec = Math.max(0, sec | 0);
@@ -286,7 +290,7 @@
       const pad = (n) => n.toString().padStart(2, "0");
       const dd  = pad(d.getDate());
       const mm  = pad(d.getMonth() + 1);
-      const yy  = d.getFullYear() + 543; // พ.ศ.
+      const yy  = d.getFullYear() + 543;
       const hh  = pad(d.getHours());
       const mi  = pad(d.getMinutes());
       const ss  = pad(d.getSeconds());
@@ -309,7 +313,7 @@
     }
 
     // ==========================
-    // การสลับหน้า
+    // UI switch
     // ==========================
     function showLoginUI() {
       loginBox.style.display    = "block";
@@ -317,17 +321,20 @@
       mainPage.style.display    = "none";
       historyPage.style.display = "none";
       logoutBtn.style.display   = "none";
+
       currentUserId             = null;
       currentUserLabel.textContent = "-";
-      patientMap                = {};
-      currentPatientId          = null;
+      patientMap       = {};
+      currentPatientId = null;
+
       patientSelect.innerHTML   = `<option value="">— เลือกผู้ป่วย —</option>`;
       patientInfo.style.display = "none";
       deletePatientBtn.style.display = "none";
       clearMonitor();
       clearHistoryTable();
-      loginMsg.textContent      = "";
-      registerMsg.textContent   = "";
+
+      loginMsg.textContent    = "";
+      registerMsg.textContent = "";
     }
 
     function showRegisterUI() {
@@ -335,7 +342,10 @@
       registerBox.style.display = "block";
       mainPage.style.display    = "none";
       historyPage.style.display = "none";
-      registerMsg.textContent   = "";
+
+      registerMsg.textContent  = "";
+      regUsernameInput.value   = "";
+      regPasswordInput.value   = "";
     }
 
     function showMainUI() {
@@ -343,29 +353,30 @@
       registerBox.style.display = "none";
       mainPage.style.display    = "block";
       historyPage.style.display = "none";
+
       patientBox.style.display  = "block";
       monitorBox.style.display  = "block";
       mainNavRow.style.display  = "block";
       logoutBtn.style.display   = "inline-block";
+
       currentUserLabel.textContent = currentUserId || "-";
     }
 
     fullscreenBtn.addEventListener("click", () => {
       if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-          console.error("Error attempting fullscreen:", err);
-        });
+        document.documentElement.requestFullscreen().catch(console.error);
       } else {
         document.exitFullscreen();
       }
     });
 
     // ==========================
-    // ระบบผู้ใช้ (users/{username})
+    // USER: Register / Login
     // ==========================
     async function registerUser(username, password) {
       const u = username.trim();
       const p = password.trim();
+
       if (!u || !p) {
         registerMsg.textContent = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
         registerMsg.style.color = "yellow";
@@ -376,6 +387,7 @@
         const url = buildUrl("/users/" + encodeURIComponent(u) + ".json");
         const res = await fetch(url);
         const existing = await res.json();
+
         if (existing) {
           registerMsg.textContent = "มีผู้ใช้นี้อยู่แล้ว กรุณาใช้ชื่ออื่น";
           registerMsg.style.color = "red";
@@ -383,21 +395,21 @@
         }
 
         const payload = {
-          password: p,          // ระบบจริงควร hash รหัสผ่าน
+          password: p, // ระบบจริงควร hash
           createdAt: Date.now()
         };
 
-        const resSet = await fetch(url, {
+        const putRes = await fetch(url, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
-        if (!resSet.ok) {
-          throw new Error("HTTP " + resSet.status);
+        if (!putRes.ok) {
+          throw new Error("HTTP " + putRes.status);
         }
 
-        registerMsg.textContent = "สมัครสมาชิกสำเร็จ กำลังกลับไปหน้าเข้าสู่ระบบ...";
+        registerMsg.textContent = "สมัครสมาชิกสำเร็จ กำลังกลับหน้าเข้าสู่ระบบ...";
         registerMsg.style.color = "lightgreen";
 
         setTimeout(() => {
@@ -413,6 +425,7 @@
     async function loginUser(username, password) {
       const u = username.trim();
       const p = password.trim();
+
       if (!u || !p) {
         loginMsg.textContent = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
         loginMsg.style.color = "yellow";
@@ -423,6 +436,7 @@
         const url = buildUrl("/users/" + encodeURIComponent(u) + ".json");
         const res = await fetch(url);
         const data = await res.json();
+
         if (!data || data.password !== p) {
           loginMsg.textContent = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
           loginMsg.style.color = "red";
@@ -446,7 +460,9 @@
       showLoginUI();
     }
 
-    // ปุ่ม login / register / logout
+    // ==========================
+    // USER: event handlers
+    // ==========================
     loginBtn.addEventListener("click", (e) => {
       e.preventDefault();
       loginUser(usernameInput.value, passwordInput.value);
@@ -472,13 +488,8 @@
       logout();
     });
 
-    backToLoginBtn2.addEventListener("click", (e) => {
-      e.preventDefault();
-      showLoginUI();
-    });
-
     // ==========================
-    // จัดการข้อมูลผู้ป่วย (patients/{patientId})
+    // PATIENTS
     // ==========================
     async function loadPatientsForCurrentUser() {
       patientMap = {};
@@ -499,13 +510,13 @@
         Object.keys(data).forEach((pid) => {
           const p = data[pid];
           if (!p) return;
-          if (p.ownerId !== currentUserId) return; // เห็นเฉพาะของตัวเอง
+          if (p.ownerId !== currentUserId) return;
 
           patientMap[pid] = p;
           const opt = document.createElement("option");
-          const fullname = (p.name || "") + (p.lastname ? " " + p.lastname : "");
+          const fullName = (p.name || "") + (p.lastname ? " " + p.lastname : "");
           opt.value = pid;
-          opt.textContent = `${fullname} (${pid})`;
+          opt.textContent = `${fullName} (${pid})`;
           patientSelect.appendChild(opt);
         });
       } catch (err) {
@@ -513,7 +524,6 @@
       }
     }
 
-    // สลับแสดงฟอร์มผู้ป่วยใหม่
     toggleNewPatientBtn.addEventListener("click", () => {
       if (newPatientForm.style.display === "none" || newPatientForm.style.display === "") {
         newPatientForm.style.display = "block";
@@ -522,7 +532,6 @@
       }
     });
 
-    // บันทึกผู้ป่วยใหม่
     savePatientBtn.addEventListener("click", async () => {
       patientMsgEl.textContent = "";
       deleteMsgEl.textContent  = "";
@@ -587,7 +596,6 @@
       }
     });
 
-    // ลบผู้ป่วย
     deletePatientBtn.addEventListener("click", async () => {
       deleteMsgEl.textContent = "";
       if (!currentUserId) {
@@ -614,7 +622,7 @@
       if (!ok) return;
 
       try {
-        // ลบ /patients/{id}
+        // ลบข้อมูลผู้ป่วย
         const urlP = buildUrl("/patients/" + currentPatientId + ".json");
         await fetch(urlP, { method: "DELETE" });
 
@@ -652,7 +660,6 @@
       }
     });
 
-    // เปลี่ยนผู้ป่วยที่เลือก
     patientSelect.addEventListener("change", () => {
       const id = patientSelect.value;
       onPatientSelected(id);
@@ -684,7 +691,7 @@
     }
 
     // ==========================
-    // ดึงประวัติ CPM ของผู้ป่วยจาก cpm_results
+    // HISTORY from cpm_results
     // ==========================
     async function loadHistoryForPatient(patientId) {
       clearHistoryTable();
@@ -734,7 +741,6 @@
           historyBody.appendChild(tr);
         });
 
-        // แสดง session ล่าสุดในกล่อง Monitor
         const latest = rows[0];
         stateEl.textContent = "FINISHED";
         angleEl.textContent = (latest.angle1 != null && latest.angle2 != null)
@@ -750,7 +756,7 @@
     }
 
     // ==========================
-    // สลับหน้า Main <-> History
+    // SWITCH main/history
     // ==========================
     toHistoryBtn.addEventListener("click", () => {
       historyPage.style.display = "block";
@@ -762,13 +768,11 @@
       mainPage.style.display    = "block";
     });
 
-    backToLoginBtn2.addEventListener("click", () => {
+    backToLoginFromHistoryBtn.addEventListener("click", () => {
       showLoginUI();
     });
 
-    // ==========================
     // เริ่มต้น
-    // ==========================
     document.addEventListener("DOMContentLoaded", () => {
       showLoginUI();
     });
