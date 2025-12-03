@@ -422,37 +422,66 @@
       }
     }
 
-    async function loginUser(username, password) {
-      const u = username.trim();
-      const p = password.trim();
+async function registerUser(username, password) {
+  const u = username.trim();
+  const p = password.trim();
 
-      if (!u || !p) {
-        loginMsg.textContent = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
-        loginMsg.style.color = "yellow";
-        return;
-      }
+  if (!u || !p) {
+    registerMsg.textContent = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน";
+    registerMsg.style.color = "yellow";
+    return;
+  }
 
-      try {
-        const url = buildUrl("/users/" + encodeURIComponent(u) + ".json");
-        const res = await fetch(url);
-        const data = await res.json();
+  try {
+    const url = buildUrl("/users/" + encodeURIComponent(u) + ".json");
+    const res = await fetch(url);
 
-        if (!data || data.password !== p) {
-          loginMsg.textContent = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
-          loginMsg.style.color = "red";
-          return;
-        }
-
-        currentUserId = u;
-        loginMsg.textContent = "";
-        showMainUI();
-        await loadPatientsForCurrentUser();
-      } catch (err) {
-        console.error("loginUser error:", err);
-        loginMsg.textContent = "เข้าสู่ระบบไม่สำเร็จ: " + err;
-        loginMsg.style.color = "red";
-      }
+    if (!res.ok) {
+      // ถ้าอ่านไม่ได้ให้แสดง error ตรง ๆ
+      registerMsg.textContent = "อ่านข้อมูลจาก Firebase ไม่ได้ (" + res.status + ")";
+      registerMsg.style.color = "red";
+      return;
     }
+
+    const existing = await res.json();
+    console.log("existing user data =", existing);
+
+    // 👇 ถือว่า "มีผู้ใช้อยู่แล้ว" เฉพาะกรณีที่มีฟิลด์ password จริง ๆ
+    if (existing && typeof existing === "object" && existing.password !== undefined) {
+      registerMsg.textContent = "มีผู้ใช้นี้อยู่แล้ว กรุณาใช้ชื่ออื่น";
+      registerMsg.style.color = "red";
+      return;
+    }
+
+    // -------- สร้างผู้ใช้ใหม่ --------
+    const payload = {
+      password: p,          // (ระบบจริงควร hash รหัสผ่าน)
+      createdAt: Date.now()
+    };
+
+    const putRes = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (!putRes.ok) {
+      throw new Error("HTTP " + putRes.status);
+    }
+
+    registerMsg.textContent = "สมัครสมาชิกสำเร็จ กำลังกลับหน้าเข้าสู่ระบบ...";
+    registerMsg.style.color = "lightgreen";
+
+    setTimeout(() => {
+      showLoginUI();
+    }, 1500);
+  } catch (err) {
+    console.error("registerUser error:", err);
+    registerMsg.textContent = "สมัครสมาชิกไม่สำเร็จ: " + err;
+    registerMsg.style.color = "red";
+  }
+}
+
 
     function logout() {
       usernameInput.value = "";
@@ -779,3 +808,4 @@
   </script>
 </body>
 </html>
+
