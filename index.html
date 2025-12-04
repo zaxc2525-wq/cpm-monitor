@@ -4,19 +4,600 @@
   <meta charset="utf-8">
   <title>CPM Monitor</title>
 
-  <base href="/cpmpateint-data/">
-  <link rel="stylesheet" href="css/styles.css">
+  <!-- ถ้าจะใช้ base + external css เพิ่มทีหลังค่อยใส่ -->
+  <!-- <base href="/cpmpateint-data/"> -->
+
+  <style>
+    /* ================================
+       BASE + THEME VARIABLES
+    ================================= */
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      background: var(--body-bg);
+      color: #e5e7eb;
+      transition: background 0.35s ease, color 0.25s ease;
+    }
+
+    /* ค่า default (dark) */
+    body {
+      --body-bg: radial-gradient(circle at top left, #2c7cf7, #111827);
+
+      --card-bg: rgba(15, 23, 42, 0.9);
+      --card-border: rgba(148, 163, 184, 0.35);
+      --card-radius: 24px;
+
+      --text-main: #e5e7eb;
+      --text-soft: #9ca3af;
+      --text-strong: #f9fafb;
+
+      --input-bg: rgba(30, 41, 59, 0.8);
+      --input-border: rgba(148, 163, 184, 0.45);
+      --input-placeholder: #6b7280;
+
+      --primary1: #38bdf8;
+      --primary2: #2563eb;
+      --danger-border: rgba(248, 113, 113, 0.7);
+      --danger-text: #fca5a5;
+      --accent-green1: #22c55e;
+      --accent-green2: #16a34a;
+
+      --btn-text-main: #e5e7eb;
+      --btn-border-soft: rgba(148, 163, 184, 0.45);
+
+      --shadow-main: 0 22px 60px rgba(0, 0, 0, 0.55);
+      --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+
+    /* ========= THEME: DARK ========= */
+    body[data-theme="dark"] {
+      --body-bg: radial-gradient(circle at top left, #2c7cf7, #111827);
+    }
+
+    /* ========= THEME: LIGHT HOSPITAL ========= */
+    body[data-theme="light"] {
+      --body-bg: radial-gradient(circle at top left, #e0f2ff, #f8fbff);
+
+      --card-bg: #ffffff;
+      --card-border: rgba(148, 163, 184, 0.35);
+      --text-main: #111827;
+      --text-soft: #6b7280;
+      --text-strong: #0f172a;
+
+      --input-bg: #f9fafb;
+      --input-border: rgba(148, 163, 184, 0.55);
+      --input-placeholder: #9ca3af;
+
+      --primary1: #3b82f6;
+      --primary2: #2563eb;
+      --danger-border: rgba(239, 68, 68, 0.75);
+      --danger-text: #b91c1c;
+      --accent-green1: #16a34a;
+      --accent-green2: #22c55e;
+
+      --btn-text-main: #111827;
+      --btn-border-soft: rgba(148, 163, 184, 0.55);
+
+      --shadow-main: 0 20px 55px rgba(15, 23, 42, 0.22);
+      --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.18);
+    }
+
+    /* ========= THEME: HIS MODERN ========= */
+    body[data-theme="his"] {
+      --body-bg: radial-gradient(circle at top left, #0f172a, #020617);
+
+      --card-bg: #020617;
+      --card-border: rgba(51, 65, 85, 0.9);
+      --text-main: #e5e7eb;
+      --text-soft: #9ca3af;
+      --text-strong: #f9fafb;
+
+      --input-bg: #020617;
+      --input-border: rgba(51, 65, 85, 0.9);
+      --input-placeholder: #64748b;
+
+      --primary1: #06b6d4;
+      --primary2: #0ea5e9;
+      --danger-border: rgba(248, 113, 113, 0.8);
+      --danger-text: #fca5a5;
+      --accent-green1: #22c55e;
+      --accent-green2: #16a34a;
+
+      --btn-text-main: #e5e7eb;
+      --btn-border-soft: rgba(51, 65, 85, 0.9);
+
+      --shadow-main: 0 22px 70px rgba(15, 23, 42, 0.9);
+      --shadow-soft: 0 12px 40px rgba(15, 23, 42, 0.8);
+    }
+
+    /* ================================
+       BLUR OVERLAY (พื้นหลังฟ้าเดียวกัน)
+    ================================= */
+    .bg-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .bg-overlay::before,
+    .bg-overlay::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(80px);
+      opacity: 0.32;
+    }
+
+    .bg-overlay::before {
+      width: 320px;
+      height: 320px;
+      background: #38bdf8;
+      top: -80px;
+      right: -40px;
+    }
+
+    .bg-overlay::after {
+      width: 320px;
+      height: 320px;
+      background: #4ade80;
+      bottom: -90px;
+      left: -40px;
+    }
+
+    body[data-theme="light"] .bg-overlay::before,
+    body[data-theme="light"] .bg-overlay::after {
+      opacity: 0.14;
+      filter: blur(90px);
+    }
+
+    body[data-theme="his"] .bg-overlay::before {
+      background: #0ea5e9;
+    }
+    body[data-theme="his"] .bg-overlay::after {
+      background: #22c55e;
+    }
+
+    /* ================================
+       APP WRAPPER
+    ================================= */
+    #appWrapper {
+      width: 100%;
+      max-width: 960px;
+      padding: 22px 26px 26px;
+      border-radius: var(--card-radius);
+
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--shadow-main);
+
+      color: var(--text-main);
+    }
+
+    @media (max-width: 768px) {
+      #appWrapper {
+        max-width: 480px;
+        padding: 18px 16px 22px;
+      }
+    }
+
+    /* ================================
+       TOP BAR + LOGO + THEME SWITCH
+    ================================= */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .logo-block {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-circle {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.08em;
+
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      box-shadow: var(--shadow-soft);
+      color: var(--text-main);
+    }
+
+    body[data-theme="light"] .logo-circle {
+      background: #eff6ff;
+      color: #1e293b;
+    }
+
+    .logo-text h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-strong);
+    }
+
+    .logo-text p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .theme-switcher {
+      display: inline-flex;
+      padding: 3px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      gap: 2px;
+    }
+
+    body[data-theme="light"] .theme-switcher {
+      background: #f1f5f9;
+      border-color: rgba(148, 163, 184, 0.6);
+    }
+
+    .theme-btn {
+      border: none;
+      background: transparent;
+      color: #9ca3af;
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.06s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .theme-btn span.dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #6b7280;
+    }
+
+    .theme-btn.active {
+      background: linear-gradient(135deg, var(--primary1), var(--primary2));
+      color: #f9fafb;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .theme-btn.active span.dot {
+      background: #f9fafb;
+    }
+
+    /* ================================
+       CARD & SECTION
+    ================================= */
+    .card {
+      background: var(--card-bg);
+      border-radius: 18px;
+      border: 1px solid var(--card-border);
+      padding: 16px 18px 14px;
+      box-shadow: var(--shadow-soft);
+      margin-top: 14px;
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-strong);
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid rgba(148, 163, 184, 0.35);
+      margin: 10px 0;
+    }
+
+    /* ================================
+       FORM FIELDS
+    ================================= */
+    .field-label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-top: 6px;
+      margin-bottom: 4px;
+    }
+
+    .field-group {
+      margin-bottom: 8px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 10px;
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
+      color: var(--text-main);
+      font-size: 14px;
+      outline: none;
+      transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: var(--input-placeholder);
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--primary1);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.5);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    /* ================================
+       BUTTONS
+    ================================= */
+    .button-row,
+    .nav-row {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition:
+        background 0.18s ease,
+        box-shadow 0.18s ease,
+        transform 0.06s ease,
+        color 0.18s ease,
+        border-color 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn.small {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn.primary {
+      background: linear-gradient(135deg, var(--primary1), var(--primary2));
+      color: #ffffff;
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
+    }
+
+    .btn.primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 26px rgba(37, 99, 235, 0.8);
+    }
+
+    .btn.ghost {
+      background: transparent;
+      color: var(--btn-text-main);
+      border: 1px solid var(--btn-border-soft);
+    }
+
+    .btn.ghost:hover {
+      background: rgba(148, 163, 184, 0.16);
+    }
+
+    .btn.danger {
+      background: transparent;
+      color: var(--danger-text);
+      border: 1px solid var(--danger-border);
+    }
+
+    .btn.danger:hover {
+      background: rgba(248, 113, 113, 0.16);
+    }
+
+    .fs-btn {
+      margin-top: 6px;
+    }
+
+    .msg {
+      min-height: 18px;
+      font-size: 13px;
+      margin: 6px 0 2px 0;
+      color: #fca5a5;
+    }
+
+    /* ================================
+       PATIENT / MONITOR
+    ================================= */
+    .patient-info {
+      background: rgba(15, 23, 42, 0.75);
+      border-radius: 12px;
+      padding: 10px;
+      margin-top: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+    body[data-theme="light"] .patient-info {
+      background: #f9fafb;
+    }
+    body[data-theme="his"] .patient-info {
+      background: #020617;
+    }
+
+    .value-sm {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .pill-dev {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.6);
+      color: #bfdbfe;
+    }
+
+    .new-patient h4 {
+      margin: 10px 0 6px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-strong);
+    }
+
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-top: 6px;
+    }
+
+    .label {
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+
+    .value {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .value.time {
+      font-size: 14px;
+      font-weight: 500;
+      color: #d1d5db;
+    }
+
+    .value-pill {
+      font-size: 13px;
+      font-weight: 600;
+      color: #ecfeff;
+      background: linear-gradient(135deg, var(--accent-green1), var(--accent-green2));
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(22, 163, 74, 0.7);
+    }
+
+    /* ================================
+       HISTORY TABLE
+    ================================= */
+    .card.history {
+      margin-top: 16px;
+    }
+
+    .history-header h3 {
+      margin-bottom: 4px;
+    }
+
+    .history-sub {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    .history-table th,
+    .history-table td {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      padding: 6px 4px;
+      text-align: left;
+    }
+
+    .history-table th {
+      font-size: 12px;
+      color: var(--text-soft);
+      font-weight: 500;
+    }
+
+    .history-table td {
+      color: var(--text-main);
+    }
+
+    .history-table tr:hover td {
+      background: rgba(148, 163, 184, 0.12);
+    }
+
+    .history-table .empty {
+      text-align: center;
+      color: var(--text-soft);
+    }
+
+    @media (max-width: 480px) {
+      .card {
+        padding: 14px 14px 12px;
+      }
+    }
+  </style>
 </head>
-<body>
+
+<body data-theme="dark">
 <div class="bg-overlay"></div>
 
 <div id="appWrapper">
-  <!-- โลโก้ -->
-  <div class="logo-block">
-    <div class="logo-circle">CPM</div>
-    <div class="logo-text">
-      <h1>CPM Monitor</h1>
-      <p>Continuous Passive Motion Dashboard</p>
+  <!-- TOP BAR: โลโก้ + ปุ่มเปลี่ยนธีม -->
+  <div class="top-bar">
+    <div class="logo-block">
+      <div class="logo-circle">CPM</div>
+      <div class="logo-text">
+        <h1>CPM Monitor</h1>
+        <p>Continuous Passive Motion Dashboard</p>
+      </div>
+    </div>
+
+    <div class="theme-switcher">
+      <button class="theme-btn active" data-theme-target="dark">
+        <span class="dot"></span> Dark
+      </button>
+      <button class="theme-btn" data-theme-target="light">
+        <span class="dot"></span> Light
+      </button>
+      <button class="theme-btn" data-theme-target="his">
+        <span class="dot"></span> HIS
+      </button>
     </div>
   </div>
 
@@ -312,7 +893,7 @@
     patientBox.style.display  = "block";
     monitorBox.style.display  = "block";
     mainNavRow.style.display  = "block";
-    logoutBtn.style.display   = "inline-block";
+    logoutBtn.style.display   = "inline-flex";
     currentUserLabel.textContent = currentUserId || "-";
   }
 
@@ -606,7 +1187,7 @@
     pDeviceEl.textContent=p.deviceId||"-";
     pNoteEl.textContent=p.note||"-";
     patientInfo.style.display="block";
-    deletePatientBtn.style.display="inline-block";
+    deletePatientBtn.style.display="inline-flex";
     loadHistoryForPatient(currentPatientId);
   }
 
@@ -702,6 +1283,21 @@
   });
 
   document.addEventListener("DOMContentLoaded",showLoginUI);
+
+  // ===== THEME SWITCHER =====
+  (function () {
+    const body   = document.body;
+    const btns   = document.querySelectorAll(".theme-btn");
+
+    btns.forEach((btn)=>{
+      btn.addEventListener("click",()=>{
+        const theme = btn.getAttribute("data-theme-target");
+        body.setAttribute("data-theme", theme || "dark");
+        btns.forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+  })();
 </script>
 </body>
 </html>
