@@ -177,18 +177,14 @@ body[data-theme="his"] .bg-overlay::after {
   max-width: 900px;
   padding: 22px 22px 26px;
   z-index: 1;
-
   margin: 0 auto;
 
   background: var(--card-bg);
   border-radius: 24px;
   border: 1px solid var(--border-soft);
   box-shadow: var(--shadow-soft);
-
-  /* ใหม่: จำกัดสูงสุด = สูงจอ - ขอบ */
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;      /* ถ้าเกินให้เลื่อนในกรอบนี้ */
 }
+
 
 
 
@@ -715,5 +711,15 @@ textarea {
     margin-bottom: 10px;
     padding: 12px 14px 12px;
   }
+}
+/* ===== บังคับให้หน้าเว็บสามารถเลื่อนแนวตั้งได้แน่นอน ===== */
+html,
+body {
+  height: auto !important;
+  min-height: 100% !important;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 
