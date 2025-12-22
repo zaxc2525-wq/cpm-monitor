@@ -736,8 +736,6 @@
 </div>
 
 <script>
-  /* ===== JS เดิมของคุณทั้งหมด ผมคัดกลับมาให้แบบเดิมเลย ===== */
-
   const FIREBASE_URL  = "https://ankle-cpm-default-rtdb.asia-southeast1.firebasedatabase.app";
   const FIREBASE_AUTH = null;
 
@@ -750,6 +748,7 @@
     return url;
   }
 
+  // ===== DOM refs (เหมือนเดิมของคุณ) =====
   const loginBox    = document.getElementById("loginBox");
   const registerBox = document.getElementById("registerBox");
   const mainPage    = document.getElementById("mainPage");
@@ -806,6 +805,10 @@
   let patientMap       = {};
   let currentPatientId = null;
 
+  // ===== realtime monitor state =====
+  let telePollTimer = null;
+  let currentDeviceWatching = null;
+
   function formatMMSS(sec) {
     sec = Math.max(0, sec | 0);
     const m  = Math.floor(sec / 60);
@@ -820,6 +823,7 @@
     const pad = (n)=>n.toString().padStart(2,"0");
     return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()+543} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
+
   function clearMonitor(){
     stateEl.textContent="-";
     angleEl.textContent="-";
@@ -830,7 +834,83 @@
     historyBody.innerHTML = `<tr><td colspan="5" class="empty">ยังไม่มีข้อมูล</td></tr>`;
   }
 
+  function stopTelemetryWatch(){
+    if (telePollTimer) clearInterval(telePollTimer);
+    telePollTimer = null;
+    currentDeviceWatching = null;
+  }
+
+  async function setDeviceOwner(deviceId){
+    if (!deviceId || !currentUserId) return;
+    try{
+      const url = buildUrl(`/devices/${encodeURIComponent(deviceId)}.json`);
+      await fetch(url, {
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ ownerId: currentUserId, deviceId })
+      });
+    }catch(e){
+      console.warn("setDeviceOwner failed:", e);
+    }
+  }
+
+  function watchTelemetry(deviceId){
+    stopTelemetryWatch();
+    if (!deviceId) return;
+
+    currentDeviceWatching = deviceId;
+
+    const poll = async ()=>{
+      try{
+        const url = buildUrl(`/devices/${encodeURIComponent(deviceId)}/telemetry.json`);
+        const res = await fetch(url);
+        if(!res.ok) return;
+        const t = await res.json();
+        if(!t) return;
+
+        // ค่าที่ ESP32 ส่ง
+        const st = String(t.state ?? "-");
+        const a1 = (t.angle1 != null) ? Number(t.angle1) : null;
+        const a2 = (t.angle2 != null) ? Number(t.angle2) : null;
+        const cur = (t.curAngle != null) ? Number(t.curAngle) : null;
+        const rem = (t.remainSec != null) ? Number(t.remainSec) : null;
+        const lastSeen = (t.lastSeen != null) ? Number(t.lastSeen) : null;
+
+        // แสดงผล
+        stateEl.textContent = st;
+
+        // มุม: แสดงช่วง + current (ถ้ามี)
+        if (a1 != null && a2 != null && cur != null){
+          angleEl.textContent = `${a1}° - ${a2}° (C:${cur}°)`;
+        }else if (a1 != null && a2 != null){
+          angleEl.textContent = `${a1}° - ${a2}°`;
+        }else if (cur != null){
+          angleEl.textContent = `${cur}°`;
+        }else{
+          angleEl.textContent = "-";
+        }
+
+        // เวลา: remainSec
+        if (rem != null){
+          remEl.textContent = `${rem} วินาที (${formatMMSS(rem)})`;
+        }else{
+          remEl.textContent = "-";
+        }
+
+        // time: lastSeen
+        timeEl.textContent = lastSeen ? formatTimeFromSeconds(lastSeen) : "-";
+      }catch(err){
+        console.warn("telemetry poll error:", err);
+      }
+    };
+
+    poll();
+    telePollTimer = setInterval(poll, 700);
+  }
+
   function showLoginUI(){
+    stopTelemetryWatch();
+
     loginBox.style.display    = "block";
     registerBox.style.display = "none";
     mainPage.style.display    = "none";
@@ -984,7 +1064,10 @@
     logout();
   });
 
+  // ======= CHANGED: load patients from /users/{owner}/patients =======
   async function loadPatientsForCurrentUser(){
+    stopTelemetryWatch();
+
     patientMap={};
     patientSelect.innerHTML=`<option value="">— เลือกผู้ป่วย —</option>`;
     patientInfo.style.display="none";
@@ -994,15 +1077,16 @@
     if(!currentUserId) return;
 
     try{
-      const url = buildUrl("/patients.json");
+      const url = buildUrl(`/users/${encodeURIComponent(currentUserId)}/patients.json`);
       const res = await fetch(url);
       const data = await res.json();
       if(!data) return;
+
       Object.keys(data).forEach(pid=>{
         const p=data[pid];
         if(!p) return;
-        if(p.ownerId!==currentUserId) return;
         patientMap[pid]=p;
+
         const opt=document.createElement("option");
         const fullname=(p.name||"")+(p.lastname?(" "+p.lastname):"");
         opt.value=pid;
@@ -1019,6 +1103,7 @@
       (newPatientForm.style.display==="block")?"none":"block";
   });
 
+  // ======= CHANGED: save patient to /users/{owner}/patients/{id} =======
   savePatientBtn.addEventListener("click",async()=>{
     patientMsgEl.textContent="";
     deleteMsgEl.textContent="";
@@ -1040,6 +1125,7 @@
       patientMsgEl.textContent="รหัสผู้ป่วยต้องเป็นตัวเลข 4 หลัก (เช่น 0123)";
       patientMsgEl.style.color="red"; return;
     }
+
     const payload={
       patientId:id,
       name,
@@ -1049,14 +1135,19 @@
       ownerId:currentUserId,
       createdAt:Date.now()
     };
+
     try{
-      const url=buildUrl("/patients/"+id+".json");
+      const url=buildUrl(`/users/${encodeURIComponent(currentUserId)}/patients/${encodeURIComponent(id)}.json`);
       const res=await fetch(url,{
         method:"PUT",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify(payload)
       });
       if(!res.ok) throw new Error("HTTP "+res.status);
+
+      // ผูก device owner ให้ ESP32 ดึง owner ได้
+      await setDeviceOwner(deviceId);
+
       patientMsgEl.textContent="บันทึกข้อมูลผู้ป่วยเรียบร้อย";
       patientMsgEl.style.color="lightgreen";
 
@@ -1075,6 +1166,7 @@
     }
   });
 
+  // ======= CHANGED: delete patient & history from /users/{owner}/... =======
   deletePatientBtn.addEventListener("click",async()=>{
     deleteMsgEl.textContent="";
     if(!currentUserId){
@@ -1085,31 +1177,18 @@
       deleteMsgEl.textContent="กรุณาเลือกผู้ป่วยก่อนลบ";
       deleteMsgEl.style.color="yellow"; return;
     }
-    const p=patientMap[currentPatientId];
-    if(p.ownerId!==currentUserId){
-      deleteMsgEl.textContent="คุณไม่มีสิทธิ์ลบผู้ป่วยคนนี้";
-      deleteMsgEl.style.color="red"; return;
-    }
+
     const ok=window.confirm("ยืนยันลบผู้ป่วยรหัส "+currentPatientId+" และประวัติทั้งหมด?");
     if(!ok) return;
+
     try{
-      const urlP=buildUrl("/patients/"+currentPatientId+".json");
+      // delete patient
+      const urlP = buildUrl(`/users/${encodeURIComponent(currentUserId)}/patients/${encodeURIComponent(currentPatientId)}.json`);
       await fetch(urlP,{method:"DELETE"});
 
-      const urlHist=buildUrl("/cpm_results.json");
-      const resH=await fetch(urlHist);
-      const histData=await resH.json();
-      if(histData){
-        const tasks=[];
-        const pidStr = String(currentPatientId);
-        for(const key in histData){
-          const item=histData[key];
-          if(item && String(item.patientId)===pidStr){
-            tasks.push(fetch(buildUrl("/cpm_results/"+key+".json"),{method:"DELETE"}));
-          }
-        }
-        await Promise.all(tasks);
-      }
+      // delete history subtree for that patient
+      const urlH = buildUrl(`/users/${encodeURIComponent(currentUserId)}/cpm_results/${encodeURIComponent(currentPatientId)}.json`);
+      await fetch(urlH,{method:"DELETE"});
 
       deleteMsgEl.textContent="ลบผู้ป่วยและประวัติเรียบร้อย";
       deleteMsgEl.style.color="lightgreen";
@@ -1133,6 +1212,8 @@
 
   function onPatientSelected(id){
     deleteMsgEl.textContent="";
+    stopTelemetryWatch();
+
     if(!id || !patientMap[id]){
       currentPatientId=null;
       patientInfo.style.display="none";
@@ -1141,66 +1222,72 @@
       clearHistoryTable();
       return;
     }
+
     currentPatientId=id;
     const p=patientMap[id];
+
     pNameEl.textContent=(p.name||"")+(p.lastname?(" "+p.lastname):"");
     pHNEl.textContent=p.patientId||id;
     pDeviceEl.textContent=p.deviceId||"-";
     pNoteEl.textContent=p.note||"-";
     patientInfo.style.display="block";
     deletePatientBtn.style.display="inline-flex";
+
+    // ผูก device owner เพื่อให้ ESP32 ใช้ ownerId นี้
+    setDeviceOwner(p.deviceId || "");
+
+    // Monitor realtime จาก telemetry
+    watchTelemetry(p.deviceId || "");
+
+    // โหลดประวัติ
     loadHistoryForPatient(currentPatientId);
   }
 
+  // ======= CHANGED: load history from /users/{owner}/cpm_results/{patientId} =======
   async function loadHistoryForPatient(patientId) {
     clearHistoryTable();
-    clearMonitor();
-    if (!patientId) return;
+    // ไม่ clear monitor แล้ว เพราะ monitor มาจาก telemetry
+    if (!patientId || !currentUserId) return;
 
     try {
-      const url = buildUrl("/cpm_results.json");
+      const url = buildUrl(`/users/${encodeURIComponent(currentUserId)}/cpm_results/${encodeURIComponent(patientId)}.json`);
       const res = await fetch(url);
       const data = await res.json();
-      if (!data) return;
-
-      const pidStr = String(patientId);
-      const rows = [];
-
-      for (const key in data) {
-        const item = data[key];
-        if (!item) continue;
-
-        const recPid = (item.patientId !== undefined && item.patientId !== null)
-          ? String(item.patientId)
-          : "";
-
-        if (recPid !== pidStr) continue;
-
-        rows.push(item);
+      if (!data) {
+        clearHistoryTable();
+        return;
       }
 
+      // data เป็น object pushKey -> record
+      const rows = Object.keys(data).map(k => data[k]).filter(Boolean);
       if (rows.length === 0) {
         clearHistoryTable();
         return;
       }
 
-      rows.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      // เรียงจากใหม่ไปเก่า: ใช้ endTsUnix เป็นหลัก (ใน ESP โค้ดใหม่ด้านล่าง)
+      rows.sort((a, b) => (b.endTsUnix || b.ts || 0) - (a.endTsUnix || a.ts || 0));
 
       historyBody.innerHTML = "";
 
       rows.forEach((r) => {
         const tr = document.createElement("tr");
 
-        const tsDisp = r.ts ? formatTimeFromSeconds(r.ts) : "-";
+        const ts = r.endTsUnix || r.ts || 0;
+        const tsDisp = ts ? formatTimeFromSeconds(ts) : "-";
+
         const angleDisp =
-          r.angle1 != null && r.angle2 != null
+          (r.angle1 != null && r.angle2 != null)
             ? `${r.angle1}° - ${r.angle2}°`
             : "-";
+
+        const tsec = (r.workTimeSec != null) ? Number(r.workTimeSec) : null;
         const timeDisp =
-          r.workTimeSec != null
-            ? `${r.workTimeSec} วินาที (${formatMMSS(r.workTimeSec)})`
+          (tsec != null)
+            ? `${tsec} วินาที (${formatMMSS(tsec)})`
             : "-";
-        const devDisp = r.device || r.deviceId || "ESP32-CPM";
+
+        const devDisp = r.deviceId || r.device || "ESP32-CPM";
         const noteDisp = r.note || "";
 
         tr.innerHTML = `
@@ -1212,18 +1299,6 @@
         `;
         historyBody.appendChild(tr);
       });
-
-      const latest = rows[0];
-      stateEl.textContent = "FINISHED";
-      angleEl.textContent =
-        latest.angle1 != null && latest.angle2 != null
-          ? `${latest.angle1}° - ${latest.angle2}°`
-          : "-";
-      remEl.textContent =
-        latest.workTimeSec != null
-          ? `${latest.workTimeSec} วินาที (${formatMMSS(latest.workTimeSec)})`
-          : "-";
-      timeEl.textContent = latest.ts ? formatTimeFromSeconds(latest.ts) : "-";
     } catch (err) {
       console.error("loadHistoryForPatient error:", err);
     }
@@ -1259,4 +1334,5 @@
 </script>
 </body>
 </html>
+
 
