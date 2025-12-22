@@ -718,7 +718,7 @@
   });
 
   // =========================
-  // Auth (เหมือนเดิม)
+  // Auth
   // =========================
   async function registerUser(username,password){
     const u = username.trim();
@@ -814,7 +814,7 @@
   logoutBtn.addEventListener("click",e=>{ e.preventDefault(); logout(); });
 
   // =========================
-  // Patients (กลับไปใช้ /patients แบบง่าย)
+  // Patients (/patients) แยกตาม ownerId
   // =========================
   async function loadPatientsForCurrentUser(){
     patientMap={};
@@ -834,7 +834,8 @@
       Object.keys(data).forEach(pid=>{
         const p=data[pid];
         if(!p) return;
-        if(p.ownerId!==currentUserId) return; // แยกข้อมูลคนละ user
+        if(String(p.ownerId||"") !== String(currentUserId)) return;
+
         patientMap[pid]=p;
 
         const opt=document.createElement("option");
@@ -923,23 +924,24 @@
       deleteMsgEl.style.color="yellow"; return;
     }
 
-    const ok=window.confirm("ยืนยันลบผู้ป่วยรหัส "+currentPatientId+" และประวัติทั้งหมด?");
+    const ok=window.confirm("ยืนยันลบผู้ป่วยรหัส "+currentPatientId+" และประวัติทั้งหมด (เฉพาะของบัญชีนี้)?");
     if(!ok) return;
 
     try{
       // delete patient
       await fetch(buildUrl("/patients/"+encodeURIComponent(currentPatientId)+".json"), {method:"DELETE"});
 
-      // delete all history rows matching this patientId in /cpm_results
+      // delete only this user's history for that patientId (สำคัญ: กันลบของคนอื่น)
       const resH = await fetch(buildUrl("/cpm_results.json"));
       const histData = await resH.json();
       if(histData){
         const tasks=[];
         for(const key in histData){
           const item=histData[key];
-          if(item && String(item.patientId)===String(currentPatientId)){
-            tasks.push(fetch(buildUrl("/cpm_results/"+encodeURIComponent(key)+".json"), {method:"DELETE"}));
-          }
+          if(!item) continue;
+          if(String(item.patientId||"") !== String(currentPatientId)) continue;
+          if(String(item.ownerId||"") !== String(currentUserId)) continue;
+          tasks.push(fetch(buildUrl("/cpm_results/"+encodeURIComponent(key)+".json"), {method:"DELETE"}));
         }
         await Promise.all(tasks);
       }
@@ -982,17 +984,16 @@
     patientInfo.style.display="block";
     deletePatientBtn.style.display="inline-flex";
 
-    // โหลด history (และอัปเดต monitor จากรายการล่าสุด)
     loadHistoryForPatient(currentPatientId);
   }
 
   // =========================
-  // History: อ่านจาก /cpm_results แล้วกรองด้วย patientId
+  // History: อ่าน /cpm_results แล้วกรองด้วย patientId + ownerId (สำคัญ)
   // =========================
   async function loadHistoryForPatient(patientId) {
     clearHistoryTable();
     clearMonitor();
-    if (!patientId) return;
+    if (!patientId || !currentUserId) return;
 
     try {
       const url = buildUrl("/cpm_results.json");
@@ -1004,19 +1005,19 @@
       }
 
       const pidStr = String(patientId);
-      const rows = [];
+      const ownerStr = String(currentUserId);
 
+      const rows = [];
       for (const key in data) {
         const item = data[key];
         if (!item) continue;
 
-        const recPid = (item.patientId !== undefined && item.patientId !== null)
-          ? String(item.patientId)
-          : "";
+        const recPid = (item.patientId != null) ? String(item.patientId) : "";
+        const recOwner = (item.ownerId != null) ? String(item.ownerId) : "";
 
         if (recPid !== pidStr) continue;
+        if (recOwner !== ownerStr) continue; // กันประวัติข้ามบัญชี
 
-        // เก็บ key ไว้ด้วย (เผื่ออนาคตจะใช้)
         rows.push({ _key: key, ...item });
       }
 
@@ -1031,16 +1032,11 @@
 
       rows.forEach((r) => {
         const tr = document.createElement("tr");
-
         const tsDisp = r.ts ? formatTimeFromSeconds(r.ts) : "-";
         const angleDisp =
-          (r.angle1 != null && r.angle2 != null)
-            ? `${r.angle1}° - ${r.angle2}°`
-            : "-";
+          (r.angle1 != null && r.angle2 != null) ? `${r.angle1}° - ${r.angle2}°` : "-";
         const timeDisp =
-          (r.workTimeSec != null)
-            ? `${r.workTimeSec} วินาที (${formatMMSS(r.workTimeSec)})`
-            : "-";
+          (r.workTimeSec != null) ? `${r.workTimeSec} วินาที (${formatMMSS(r.workTimeSec)})` : "-";
         const devDisp = r.device || r.deviceId || "ESP32-CPM";
         const noteDisp = r.note || "";
 
@@ -1054,17 +1050,13 @@
         historyBody.appendChild(tr);
       });
 
-      // อัปเดต Monitor จากรายการล่าสุด
+      // Monitor from latest (ที่ผ่าน filter แล้ว)
       const latest = rows[0];
       stateEl.textContent = "FINISHED";
       angleEl.textContent =
-        (latest.angle1 != null && latest.angle2 != null)
-          ? `${latest.angle1}° - ${latest.angle2}°`
-          : "-";
+        (latest.angle1 != null && latest.angle2 != null) ? `${latest.angle1}° - ${latest.angle2}°` : "-";
       remEl.textContent =
-        (latest.workTimeSec != null)
-          ? `${latest.workTimeSec} วินาที (${formatMMSS(latest.workTimeSec)})`
-          : "-";
+        (latest.workTimeSec != null) ? `${latest.workTimeSec} วินาที (${formatMMSS(latest.workTimeSec)})` : "-";
       timeEl.textContent = latest.ts ? formatTimeFromSeconds(latest.ts) : "-";
 
     } catch (err) {
